@@ -55,7 +55,6 @@ fn exe_create_pool(deps: DepsMut, info: MessageInfo, id: String, question: Strin
     };
 
     POLLS.save(deps.storage, id, &poll)?;
-
     Ok(Response::new().add_attribute("action", "create_poll"))
 }
 
@@ -70,7 +69,6 @@ fn exe_vote(deps: DepsMut, info: MessageInfo, poll_id: String, choice: bool) -> 
     let ballot_key = (info.sender.clone(), poll_id.clone());
 
     let mut ballot = BALLOTS.load(deps.storage, ballot_key.clone()).unwrap_or_default();
-
   
     if BALLOTS.has(deps.storage, ballot_key.clone()){
         if ballot != choice { 
@@ -79,14 +77,14 @@ fn exe_vote(deps: DepsMut, info: MessageInfo, poll_id: String, choice: bool) -> 
         }
     }
     else {
-        if ballot == true {poll.yes_votes +=1} else {poll.no_votes +=1};
+        if choice == true {poll.yes_votes +=1} else {poll.no_votes +=1};
     }
 
     // Save the data 
     POLLS.save(deps.storage, poll_id.clone(), &poll)?;
     BALLOTS.save(deps.storage, ballot_key.clone(), &ballot)?;
 
-    Ok(Response::new().add_attribute("method", "exe_vote"))
+    Ok(Response::new().add_attribute("action", "vote"))
 }
 
 
@@ -111,16 +109,18 @@ mod tests {
 
     #[test]
     fn test_instantiate(){ 
+        // Mock the environment
         let mut deps =  mock_dependencies();
         let env = mock_env();
         let info = mock_info("addr1", &[]);
 
-        //println!("Addr: {}", info.sender);
+        // Instantiate  
         let msg = InstantiateMsg{
             admin: Some(String::from("addr1")) // &str 
         };
-
         let res =  instantiate(deps.as_mut(), env, info, msg).unwrap();
+
+        println!("Res: {:?}", res);
         assert_eq!(res.attributes, vec![
             attr("action", "instantiate")
         ]);
@@ -129,68 +129,110 @@ mod tests {
     
     #[test]
     fn test_create_poll(){
+        // Mock the environment 
         let mut deps =  mock_dependencies();
         let env = mock_env();
         let info = mock_info("addr1", &[]);
 
+        // Instantiate the contract 
         let msg = InstantiateMsg {
             admin: Some("addr1".to_string()), // String, String::from("addr1")
         };
-
-        // Before you execute a contract you need to instantiate it
         let _resp = instantiate(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
 
+        // Create a poll
+        let question  = "Are you single?".to_string();
+        let poll_id = "#1".to_string();
         let create_poll_msg = ExecuteMsg::CreatePoll {
-            id: "#1".to_string(),
-            question: "Are you in the Cosmwasm blockchain developer group?".to_string(),
+            id: poll_id.clone(),
+            question: question.clone()
         };
+        let resp_exe = execute(deps.as_mut(), env.clone(), info.clone(), create_poll_msg).unwrap();
+        assert_eq!(resp_exe.attributes, vec![attr("action", "create_poll")]);
+        
 
-        let _resp_exe = execute(deps.as_mut(), env.clone(), info.clone(), create_poll_msg).unwrap();
-
-        let get_poll_msg = QueryMsg::GetPoll { poll_id: "#1".to_string() };
+        // Validate poll data
+        let get_poll_msg = QueryMsg::GetPoll { poll_id: poll_id};
         let query_resp = query(deps.as_ref(), env.clone(), get_poll_msg).unwrap();
-
         let poll_data: Poll = from_binary(&query_resp).unwrap();
+        assert_eq!(poll_data.question, question);
+        assert_eq!(poll_data.yes_votes, 0);
+        assert_eq!(poll_data.no_votes, 0);
         println!("Poll data: {:?}", poll_data);
     }
 
     #[test]
     fn test_vote(){
+        // Mock the environment 
         let mut deps =  mock_dependencies();
         let env = mock_env();
         let info = mock_info("addr1", &[]);
-
         let user = mock_info("user1", &[]);
         let user2 = mock_info("user2", &[]);
-
+        let user3 = mock_info("user3", &[]);
+        
+        // Instantiate the contract 
         let msg = InstantiateMsg {
             admin: Some("addr1".to_string()), // String, String::from("addr1")
         };
+        instantiate(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
 
-        // Before you execute a contract you need to instantiate it
-        let _resp = instantiate(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
-
+        // Create a poll
+        let question  = "Are you single?".to_string();
+        let poll_id = "#1".to_string();
         let create_poll_msg = ExecuteMsg::CreatePoll {
-            id: "#1".to_string(),
-            question: "Are you in the Cosmwasm blockchain developer group?".to_string(),
+            id: poll_id.clone(),
+            question: question.clone()
         };
+        execute(deps.as_mut(), env.clone(), info.clone(), create_poll_msg).unwrap();
 
-        let _resp_exe = execute(deps.as_mut(), env.clone(), info.clone(), create_poll_msg).unwrap();
+        // Vote 
+        let no_vote_msg = ExecuteMsg::Vote { poll_id: poll_id.clone(), choice: false };
+        let yes_vote_msg = ExecuteMsg::Vote { poll_id: poll_id.clone(), choice: true };
+        let resp_vote = execute(deps.as_mut(), env.clone(), user.clone(), no_vote_msg.clone()).unwrap();
+        assert_eq!(resp_vote.attributes, vec![attr("action", "vote")]);
+        
+        // Validate the poll data 
+        let get_poll_msg = QueryMsg::GetPoll { poll_id: poll_id.clone() };
+        let mut query_resp = query(deps.as_ref(), env.clone(), get_poll_msg.clone()).unwrap();
+        let mut poll: Poll = from_binary(&query_resp).unwrap();
 
-        //vote 
-        let no_vote_msg = ExecuteMsg::Vote { poll_id: "#1".to_string(), choice: false };
-        let yes_vote_msg = ExecuteMsg::Vote { poll_id: "#1".to_string(), choice: true };
-        let _resp_vote = execute(deps.as_mut(), env.clone(), user.clone(), no_vote_msg.clone()).unwrap();
+        assert_eq!(poll.no_votes, 1);
+        assert_eq!(poll.yes_votes, 0);
+        println!("Poll data: {:?}", poll);
+
+        // user revote with the same choice 
         execute(deps.as_mut(), env.clone(), user.clone(), no_vote_msg.clone()).unwrap();
-        execute(deps.as_mut(), env.clone(), user.clone(), no_vote_msg.clone()).unwrap();
+        query_resp = query(deps.as_ref(), env.clone(), get_poll_msg.clone()).unwrap();
+        poll = from_binary(&query_resp).unwrap();
+        assert_eq!(poll.no_votes, 1);
+        assert_eq!(poll.yes_votes, 0);
+
+        println!("Poll data: {:?}", poll);
+
+        // user change voting decision
         execute(deps.as_mut(), env.clone(), user.clone(), yes_vote_msg.clone()).unwrap();
+        query_resp = query(deps.as_ref(), env.clone(), get_poll_msg.clone()).unwrap();
+        poll = from_binary(&query_resp).unwrap();
+        assert_eq!(poll.no_votes, 0);
+        assert_eq!(poll.yes_votes, 1);
+
+        println!("Poll data: {:?}", poll);
+
+        // user2 vote 
         execute(deps.as_mut(), env.clone(), user2.clone(), yes_vote_msg.clone()).unwrap();
+        query_resp = query(deps.as_ref(), env.clone(), get_poll_msg.clone()).unwrap();
+        poll = from_binary(&query_resp).unwrap();
+        assert_eq!(poll.no_votes, 0);
+        assert_eq!(poll.yes_votes, 2);
+        println!("Poll data: {:?}", poll);
 
-        let get_poll_msg = QueryMsg::GetPoll { poll_id: "#1".to_string() };
-        let query_resp = query(deps.as_ref(), env.clone(), get_poll_msg).unwrap();
-
-        let poll_data: Poll = from_binary(&query_resp).unwrap();
-        println!("Poll data: {:?}", poll_data);
-
+        // User3 vote 
+        execute(deps.as_mut(), env.clone(), user3.clone(),no_vote_msg.clone()).unwrap();
+        query_resp = query(deps.as_ref(), env.clone(), get_poll_msg.clone()).unwrap();
+        poll = from_binary(&query_resp).unwrap();
+        assert_eq!(poll.no_votes, 1);
+        assert_eq!(poll.yes_votes, 2);
+        println!("Poll data: {:?}", poll);
     }
 }
