@@ -18,9 +18,7 @@ pub struct Poll {
     pub no_votes: u64 
 }
 
-impl Poll {
-    
-}
 
 pub const CONFIG: Item<Config> = Item::new("config");
 pub const POLLS: Map<String, Poll> = Map::new("polls");
+pub const BALLOTS: Map<(Addr, String), bool> = Map::new("ballots");

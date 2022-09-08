@@ -5,7 +5,7 @@ use cw2::set_contract_version;
 
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
-use crate::state::{Config, CONFIG, POLLS, Poll};
+use crate::state::{Config, CONFIG, POLLS, Poll, BALLOTS};
 
 const CONTRACT_NAME: &str = "crates.io:cw-starter";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -60,22 +60,31 @@ fn exe_create_pool(deps: DepsMut, info: MessageInfo, id: String, question: Strin
 }
 
 
-fn exe_vote(deps: DepsMut, _info: MessageInfo, question_id: String, choice: bool) -> Result<Response, ContractError>  {
+fn exe_vote(deps: DepsMut, info: MessageInfo, poll_id: String, choice: bool) -> Result<Response, ContractError>  {
     // Check if POLL existed 
-    if !POLLS.has(deps.storage, question_id.clone()) {
+    if !POLLS.has(deps.storage, poll_id.clone()) {
         return Err(ContractError::PollNotExisted{});
     }
 
-    // Determine choice
-    POLLS.update(
-        deps.storage,
-        question_id, 
-        |poll: Option<Poll>| -> StdResult<_> {
-            let mut poll_data = poll.unwrap();
-            if choice == false {poll_data.no_votes += 1} else {poll_data.yes_votes+=1}
-            Ok(poll_data)
+    let mut poll = POLLS.load(deps.storage, poll_id.clone()).unwrap();
+    let ballot_key = (info.sender.clone(), poll_id.clone());
+
+    let mut ballot = BALLOTS.load(deps.storage, ballot_key.clone()).unwrap_or_default();
+
+  
+    if BALLOTS.has(deps.storage, ballot_key.clone()){
+        if ballot != choice { 
+            if ballot == true {poll.yes_votes -= 1; poll.no_votes +=1;} else {poll.yes_votes +=1; poll.no_votes -=1;};
+            ballot = choice; 
         }
-    )?;
+    }
+    else {
+        if ballot == true {poll.yes_votes +=1} else {poll.no_votes +=1};
+    }
+
+    // Save the data 
+    POLLS.save(deps.storage, poll_id.clone(), &poll)?;
+    BALLOTS.save(deps.storage, ballot_key.clone(), &ballot)?;
 
     Ok(Response::new().add_attribute("method", "exe_vote"))
 }
@@ -133,7 +142,7 @@ mod tests {
 
         let create_poll_msg = ExecuteMsg::CreatePoll {
             id: "#1".to_string(),
-            question: "Do you love Spark IBC?".to_string(),
+            question: "Are you in the Cosmwasm blockchain developer group?".to_string(),
         };
 
         let _resp_exe = execute(deps.as_mut(), env.clone(), info.clone(), create_poll_msg).unwrap();
@@ -152,6 +161,7 @@ mod tests {
         let info = mock_info("addr1", &[]);
 
         let user = mock_info("user1", &[]);
+        let user2 = mock_info("user2", &[]);
 
         let msg = InstantiateMsg {
             admin: Some("addr1".to_string()), // String, String::from("addr1")
@@ -162,18 +172,19 @@ mod tests {
 
         let create_poll_msg = ExecuteMsg::CreatePoll {
             id: "#1".to_string(),
-            question: "Do you love Spark IBC?".to_string(),
+            question: "Are you in the Cosmwasm blockchain developer group?".to_string(),
         };
 
         let _resp_exe = execute(deps.as_mut(), env.clone(), info.clone(), create_poll_msg).unwrap();
 
-       
-
         //vote 
-        let vote_msg = ExecuteMsg::Vote { poll_id: "#1".to_string(), choice: false };
-        let _resp_vote = execute(deps.as_mut(), env.clone(), user.clone(), vote_msg.clone()).unwrap();
-        execute(deps.as_mut(), env.clone(), user.clone(), vote_msg.clone()).unwrap();
-        execute(deps.as_mut(), env.clone(), user.clone(), vote_msg).unwrap();
+        let no_vote_msg = ExecuteMsg::Vote { poll_id: "#1".to_string(), choice: false };
+        let yes_vote_msg = ExecuteMsg::Vote { poll_id: "#1".to_string(), choice: true };
+        let _resp_vote = execute(deps.as_mut(), env.clone(), user.clone(), no_vote_msg.clone()).unwrap();
+        execute(deps.as_mut(), env.clone(), user.clone(), no_vote_msg.clone()).unwrap();
+        execute(deps.as_mut(), env.clone(), user.clone(), no_vote_msg.clone()).unwrap();
+        execute(deps.as_mut(), env.clone(), user.clone(), yes_vote_msg.clone()).unwrap();
+        execute(deps.as_mut(), env.clone(), user2.clone(), yes_vote_msg.clone()).unwrap();
 
         let get_poll_msg = QueryMsg::GetPoll { poll_id: "#1".to_string() };
         let query_resp = query(deps.as_ref(), env.clone(), get_poll_msg).unwrap();
