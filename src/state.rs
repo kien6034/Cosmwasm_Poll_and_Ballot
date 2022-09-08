@@ -12,14 +12,7 @@ pub struct Config {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Poll {
-    pub creator: Addr, 
-    pub question: String,
-    pub yes_votes: u64,
-    pub no_votes: u64 
-}
-
-impl Poll {
-    
+    pub data: String
 }
 
 pub const CONFIG: Item<Config> = Item::new("config");

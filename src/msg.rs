@@ -10,22 +10,13 @@ pub struct InstantiateMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
-    CreatePoll { 
-        id: String, 
-        question: String 
-    },
-    Vote { 
-        poll_id: String,
-        choice: bool 
-    }
+    
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
-    GetPoll {
-        poll_id: String
-    }
+   
 }
 
 // #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
