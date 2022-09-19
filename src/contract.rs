@@ -36,13 +36,13 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg { 
-        ExecuteMsg::CreatePoll { id, question} => exe_create_pool(deps, info, id, question),
+        ExecuteMsg::CreatePoll { id, question} => exe_create_poll(deps, info, id, question),
         ExecuteMsg::Vote { poll_id, choice} => exe_vote(deps, info, poll_id, choice)
     }
 }
 
 
-fn exe_create_pool(deps: DepsMut, info: MessageInfo, id: String, question: String) -> Result<Response, ContractError> {
+fn exe_create_poll(deps: DepsMut, info: MessageInfo, id: String, question: String) -> Result<Response, ContractError> {
     if POLLS.has(deps.storage, id.clone()) {
         return Err(ContractError::PollExisted{});
     }   
