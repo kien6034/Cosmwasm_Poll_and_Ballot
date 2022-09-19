@@ -36,13 +36,13 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg { 
-        ExecuteMsg::CreatePoll { id, question} => exe_create_pool(deps, info, id, question),
+        ExecuteMsg::CreatePoll { id, question} => exe_create_poll(deps, info, id, question),
         ExecuteMsg::Vote { poll_id, choice} => exe_vote(deps, info, poll_id, choice)
     }
 }
 
 
-fn exe_create_pool(deps: DepsMut, info: MessageInfo, id: String, question: String) -> Result<Response, ContractError> {
+fn exe_create_poll(deps: DepsMut, info: MessageInfo, id: String, question: String) -> Result<Response, ContractError> {
     // Check if the poll has been created 
     if POLLS.has(deps.storage, id.clone()) {
         return Err(ContractError::PollExisted{});
@@ -63,16 +63,16 @@ fn exe_create_pool(deps: DepsMut, info: MessageInfo, id: String, question: Strin
 }
 
 
-fn exe_vote(deps: DepsMut, _info: MessageInfo, question_id: String, choice: bool) -> Result<Response, ContractError>  {
+fn exe_vote(deps: DepsMut, _info: MessageInfo, poll_id: String, choice: bool) -> Result<Response, ContractError>  {
     // Check if POLL existed 
-    if !POLLS.has(deps.storage, question_id.clone()) {
+    if !POLLS.has(deps.storage, poll_id.clone()) {
         return Err(ContractError::PollNotExisted{});
     }
 
     // Determine choice
     POLLS.update(
         deps.storage,
-        question_id, 
+        poll_id, 
         |poll: Option<Poll>| -> StdResult<_> {
             let mut poll_data = poll.unwrap();
             if choice == false {poll_data.no_votes += 1} else {poll_data.yes_votes+=1}
@@ -203,6 +203,5 @@ mod tests {
         query_resp = query(deps.as_ref(), env.clone(), get_poll_msg).unwrap();
         poll = from_binary(&query_resp).unwrap();
         println!("Poll data: {:?}", poll);
-
     }
 }

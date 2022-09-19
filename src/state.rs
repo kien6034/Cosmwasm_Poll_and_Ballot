@@ -9,7 +9,6 @@ pub struct Config {
     pub admin: Addr // allow the admin to delete polls 
 }
 
-
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Poll {
     pub creator: Addr, 
