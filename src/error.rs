@@ -9,9 +9,15 @@ pub enum ContractError {
     #[error("Custom Error val: {val:?}")]
     CustomError { val: String },
 
+    #[error("Unauthorized")]
+    Unauthorized {},
+
+    #[error("Too many poll options")]
+    TooManyOptions {},
+
     #[error("PollExisted")]
     PollExisted,
-    
+
     #[error("PollNotExisted")]
-    PollNotExisted
+    PollNotExisted,
 }
