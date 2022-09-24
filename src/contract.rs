@@ -6,7 +6,7 @@ use cosmwasm_std::{
 use cw2::set_contract_version;
 
 use crate::error::ContractError;
-use crate::msg::{AllPollsResponse, ExecuteMsg, InstantiateMsg, QueryMsg};
+use crate::msg::{AllPollsResponse, ExecuteMsg, InstantiateMsg, PollResponse, QueryMsg};
 use crate::state::{Ballot, Config, Poll, BALLOTS, CONFIG, POLLS};
 
 const CONTRACT_NAME: &str = "crates.io:cw-poll-ballots";
@@ -138,7 +138,7 @@ fn execute_vote(
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::AllPolls {} => query_all_polls(deps, env),
-        QueryMsg::Poll { poll_id } => unimplemented!(),
+        QueryMsg::Poll { poll_id } => query_poll(deps, env, poll_id),
         QueryMsg::Vote { address, poll_id } => unimplemented!(),
     }
 }
@@ -150,6 +150,11 @@ fn query_all_polls(deps: Deps, _env: Env) -> StdResult<Binary> {
         .collect::<StdResult<Vec<_>>>()?;
 
     to_binary(&AllPollsResponse { polls })
+}
+
+fn query_poll(deps: Deps, _env: Env, poll_id: String) -> StdResult<Binary> {
+    let poll = POLLS.may_load(deps.storage, poll_id)?;
+    to_binary(&PollResponse { poll })
 }
 
 #[cfg(test)]
