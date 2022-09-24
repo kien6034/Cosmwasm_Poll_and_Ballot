@@ -169,7 +169,7 @@ fn query_vote(deps: Deps, _env: Env, address: String, poll_id: String) -> StdRes
 #[cfg(test)]
 mod tests {
     use crate::contract::{instantiate, query}; // the contract instantiate function
-    use crate::msg::{AllPollsResponse, ExecuteMsg, InstantiateMsg, QueryMsg};
+    use crate::msg::{AllPollsResponse, ExecuteMsg, InstantiateMsg, PollResponse, QueryMsg};
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{attr, from_binary}; // helper to construct an attribute e.g. ("action", "instantiate")
 
@@ -382,5 +382,45 @@ mod tests {
         let bin = query(deps.as_ref(), env, msg).unwrap();
         let res: AllPollsResponse = from_binary(&bin).unwrap();
         assert_eq!(res.polls.len(), 2);
+    }
+
+    #[test]
+    fn test_query_poll() {
+        let mut deps = mock_dependencies();
+        let env = mock_env();
+        let info = mock_info(ADDR1, &vec![]);
+        // Instantiate the contract
+        let msg = InstantiateMsg { admin: None };
+        let _res = instantiate(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+
+        // Create a poll
+        let msg = ExecuteMsg::CreatePoll {
+            poll_id: "some_id_1".to_string(),
+            question: "What's your favourite Cosmos coin?".to_string(),
+            options: vec![
+                "Cosmos Hub".to_string(),
+                "Juno".to_string(),
+                "Osmosis".to_string(),
+            ],
+        };
+        let _res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+
+        // Query for the poll that exists
+        let msg = QueryMsg::Poll {
+            poll_id: "some_id_1".to_string(),
+        };
+        let bin = query(deps.as_ref(), env.clone(), msg).unwrap();
+        let res: PollResponse = from_binary(&bin).unwrap();
+        // Expect a poll
+        assert!(res.poll.is_some());
+
+        // Query for the poll that does not exists
+        let msg = QueryMsg::Poll {
+            poll_id: "some_id_not_exist".to_string(),
+        };
+        let bin = query(deps.as_ref(), env.clone(), msg).unwrap();
+        let res: PollResponse = from_binary(&bin).unwrap();
+        // Expect none
+        assert!(res.poll.is_none());
     }
 }
