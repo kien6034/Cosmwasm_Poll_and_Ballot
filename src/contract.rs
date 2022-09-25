@@ -58,6 +58,10 @@ fn execute_create_poll(
     question: String,
     options: Vec<String>,
 ) -> Result<Response, ContractError> {
+    if POLLS.has(deps.storage, &poll_id) {
+        return Err(ContractError::PollExisted {});
+    }
+
     if options.len() > 10 {
         return Err(ContractError::TooManyOptions {});
     }
@@ -85,6 +89,10 @@ fn execute_vote(
     poll_id: String,
     vote: String,
 ) -> Result<Response, ContractError> {
+    if !POLLS.has(deps.storage, &poll_id) {
+        return Err(ContractError::PollNotExisted {});
+    }
+
     let poll = POLLS.may_load(deps.storage, &poll_id)?;
 
     match poll {
