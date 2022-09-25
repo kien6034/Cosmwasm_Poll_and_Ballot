@@ -73,7 +73,7 @@ fn execute_create_poll(
         options: opts,
     };
 
-    POLLS.save(deps.storage, poll_id, &poll)?;
+    POLLS.save(deps.storage, &poll_id, &poll)?;
 
     Ok(Response::new())
 }
@@ -85,14 +85,14 @@ fn execute_vote(
     poll_id: String,
     vote: String,
 ) -> Result<Response, ContractError> {
-    let poll = POLLS.may_load(deps.storage, poll_id.clone())?;
+    let poll = POLLS.may_load(deps.storage, &poll_id)?;
 
     match poll {
         Some(mut poll) => {
             // The poll exists
             BALLOTS.update(
                 deps.storage,
-                (info.sender, poll_id.clone()),
+                (info.sender, &poll_id),
                 |ballot| -> StdResult<Ballot> {
                     match ballot {
                         Some(ballot) => {
@@ -129,7 +129,7 @@ fn execute_vote(
             poll.options[position].1 += 1;
 
             // Save the update
-            POLLS.save(deps.storage, poll_id, &poll)?;
+            POLLS.save(deps.storage, &poll_id, &poll)?;
             Ok(Response::new())
         }
         None => Err(ContractError::Unauthorized {}), // The poll does not exist so we just error
@@ -155,13 +155,13 @@ fn query_all_polls(deps: Deps, _env: Env) -> StdResult<Binary> {
 }
 
 fn query_poll(deps: Deps, _env: Env, poll_id: String) -> StdResult<Binary> {
-    let poll = POLLS.may_load(deps.storage, poll_id)?;
+    let poll = POLLS.may_load(deps.storage, &poll_id)?;
     to_binary(&PollResponse { poll })
 }
 
 fn query_vote(deps: Deps, _env: Env, address: String, poll_id: String) -> StdResult<Binary> {
     let validated_address = deps.api.addr_validate(&address).unwrap();
-    let vote = BALLOTS.may_load(deps.storage, (validated_address, poll_id))?;
+    let vote = BALLOTS.may_load(deps.storage, (validated_address, &poll_id))?;
 
     to_binary(&VoteResponse { vote })
 }
