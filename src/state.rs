@@ -12,13 +12,16 @@ pub struct Config {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Poll {
-    pub data: String
+    pub creator: Addr,
+    pub question: String,
+    pub options: Vec<(String, u64)>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Ballot {
-    pub data: String
+    pub option: String,
 }
 
 pub const CONFIG: Item<Config> = Item::new("config");
 pub const POLLS: Map<String, Poll> = Map::new("polls");
+pub const BALLOTS: Map<(Addr, String), Ballot> = Map::new("ballots");
