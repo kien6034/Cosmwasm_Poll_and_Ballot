@@ -13,5 +13,8 @@ pub enum ContractError {
     PollExisted,
     
     #[error("PollNotExisted")]
-    PollNotExisted
+    PollNotExisted,
+
+    #[error("OptionNotExisted")]
+    OptionNotExisted
 }
