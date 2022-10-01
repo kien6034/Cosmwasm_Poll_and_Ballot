@@ -268,4 +268,77 @@ mod tests {
         // Unwrap error to assert failure
         let _err = execute(deps.as_mut(), env, info, msg).unwrap_err();
     }
+    #[test]
+    fn test_execute_vote_valid() {
+        let mut deps = mock_dependencies();
+        let env = mock_env();
+        let info = mock_info(ADDR1, &[]);
+        // Instantiate the contract
+        let msg = InstantiateMsg { admin: None };
+        let _res = instantiate(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+
+        // Create the poll
+        let msg = ExecuteMsg::CreatePoll {
+            uuid: "uuid".to_string(),
+            question: "What's your favourite programming language?".to_string(),
+            options: vec![
+                "Rust".to_string(),
+                "Go".to_string(),
+                "JavaScript".to_string(),
+                "Haskell".to_string(),
+            ],
+        };
+        let _res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+
+        // Create the vote, first time voting
+        let msg = ExecuteMsg::Vote {
+            uuid: "uuid".to_string(),
+            option: "Rust".to_string(),
+        };
+        let _res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+
+        // Change the vote
+        let msg = ExecuteMsg::Vote {
+            uuid: "uuid".to_string(),
+            option: "Go".to_string(),
+        };
+        let _res = execute(deps.as_mut(), env, info, msg).unwrap();
+    }
+    #[test]
+    fn test_execute_vote_invalid() {
+        let mut deps = mock_dependencies();
+        let env = mock_env();
+        let info = mock_info(ADDR1, &[]);
+        // Instantiate the contract
+        let msg = InstantiateMsg { admin: None };
+        let _res = instantiate(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+
+        // Create the vote, some_id poll is not created yet.
+        let msg = ExecuteMsg::Vote {
+            uuid: "uuid".to_string(),
+            option: "Rust".to_string(),
+        };
+        // Unwrap to assert error
+        let _err = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap_err();
+
+        // Create the poll
+        let msg = ExecuteMsg::CreatePoll {
+            uuid: "uuid".to_string(),
+            question: "What's your favourite programming language?".to_string(),
+            options: vec![
+                "Rust".to_string(),
+                "Go".to_string(),
+                "JavaScript".to_string(),
+                "Haskell".to_string(),
+            ],
+        };
+        let _res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+
+        // Vote on a now existing poll but the option "Java" does not exist
+        let msg = ExecuteMsg::Vote {
+            uuid: "uuid".to_string(),
+            option: "Java".to_string(),
+        };
+        let _err = execute(deps.as_mut(), env, info, msg).unwrap_err();
+    }
 }
