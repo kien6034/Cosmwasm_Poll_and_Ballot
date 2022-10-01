@@ -11,7 +11,13 @@ pub enum ContractError {
 
     #[error("PollExisted")]
     PollExisted,
-    
+
     #[error("PollNotExisted")]
-    PollNotExisted
+    PollNotExisted,
+
+    #[error("Unauthorized")]
+    Unauthorized,
+
+    #[error("Too many poll options")]
+    TooManyOptions
 }
