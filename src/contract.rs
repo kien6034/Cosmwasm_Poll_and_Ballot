@@ -142,7 +142,33 @@ fn execute_vote(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(_deps: Deps, _env: Env, _msg: QueryMsg) -> StdResult<Binary> {
-    unimplemented!()
+    // unimplemented!()
+    match _msg {
+        QueryMsg::AllPolls {} => query_all_polls(_deps, _env),
+        QueryMsg::GetPoll { uuid } => query_poll(_deps, _env, uuid),
+        QueryMsg::GetVote { address, uuid } => query_vote(_deps, _env, address, uuid),
+    }
+}
+
+fn query_all_polls(_deps: Deps, _env: Env) -> StdResult<Binary> {
+    let polls = POLLS
+        .range(_deps.storage, None, None, Order::Ascending)
+        .map(|p| Ok(p?.1))
+        .collect::<StdResult<Vec<_>>>()?;
+
+    to_binary(&AllPollsResponse { polls })
+}
+
+fn query_poll(_deps: Deps, _env: Env, uuid: String) -> StdResult<Binary> {
+    let poll = POLLS.may_load(_deps.storage, uuid)?;
+    to_binary(&PollResponse { poll })
+}
+
+fn query_vote(_deps: Deps, _env: Env, address: String, uuid: String) -> StdResult<Binary> {
+    let validated_address = _deps.api.addr_validate(&address).unwrap();
+    let ballot = BALLOTS.may_load(_deps.storage, (validated_address, uuid))?;
+
+    to_binary(&VoteResponse { ballot })
 }
 
 #[cfg(test)]
@@ -340,5 +366,134 @@ mod tests {
             option: "Java".to_string(),
         };
         let _err = execute(deps.as_mut(), env, info, msg).unwrap_err();
+    }
+    #[test]
+    fn test_query_all_polls() {
+        let mut deps = mock_dependencies();
+        let env = mock_env();
+        let info = mock_info(ADDR1, &[]);
+        // Instantiate the contract
+        let msg = InstantiateMsg { admin: None };
+        let _res = instantiate(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+
+        // Create a poll
+        let msg = ExecuteMsg::CreatePoll {
+            uuid: "uuid".to_string(),
+            question: "What's your favourite programming language?".to_string(),
+            options: vec![
+                "Rust".to_string(),
+                "Go".to_string(),
+                "JavaScript".to_string(),
+                "Haskell".to_string(),
+            ],
+        };
+        let _res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+
+        // Create a second poll
+        let msg = ExecuteMsg::CreatePoll {
+            uuid: "uuid_uuid".to_string(),
+            question: "What's your favourite number?".to_string(),
+            options: vec![
+                "One".to_string(),
+                "Two".to_string(),
+                "Three".to_string(),
+            ],
+        };
+        let _res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
+
+        // Query
+        let msg = QueryMsg::AllPolls {};
+        let bin = query(deps.as_ref(), env, msg).unwrap();
+        let res: AllPollsResponse = from_binary(&bin).unwrap();
+        assert_eq!(res.polls.len(), 2);
+    }
+    #[test]
+    fn test_query_poll() {
+        let mut deps = mock_dependencies();
+        let env = mock_env();
+        let info = mock_info(ADDR1, &[]);
+        // Instantiate the contract
+        let msg = InstantiateMsg { admin: None };
+        let _res = instantiate(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+
+        // Create a poll
+        let msg = ExecuteMsg::CreatePoll {
+            uuid: "uuid".to_string(),
+            question: "What's your favourite programming language?".to_string(),
+            options: vec![
+                "Rust".to_string(),
+                "Go".to_string(),
+                "JavaScript".to_string(),
+                "Haskell".to_string(),
+            ],
+        };
+        let _res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
+
+        // Query for the poll that exists
+        let msg = QueryMsg::GetPoll {
+            uuid: "uuid".to_string(),
+        };
+        let bin = query(deps.as_ref(), env.clone(), msg).unwrap();
+        let res: PollResponse = from_binary(&bin).unwrap();
+        // Expect a poll
+        assert!(res.poll.is_some());
+
+        // Query for the poll that does not exists
+        let msg = QueryMsg::GetPoll {
+            uuid: "uuid_id_not_exist".to_string(),
+        };
+        let bin = query(deps.as_ref(), env, msg).unwrap();
+        let res: PollResponse = from_binary(&bin).unwrap();
+        // Expect none
+        assert!(res.poll.is_none());
+    }
+    #[test]
+    fn test_query_vote() {
+        let mut deps = mock_dependencies();
+        let env = mock_env();
+        let info = mock_info(ADDR1, &[]);
+        // Instantiate the contract
+        let msg = InstantiateMsg { admin: None };
+        let _res = instantiate(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+
+        // Create a poll
+        let msg = ExecuteMsg::CreatePoll {
+            uuid: "uuid".to_string(),
+            question: "What's your favourite programming language?".to_string(),
+            options: vec![
+                "Rust".to_string(),
+                "Go".to_string(),
+                "JavaScript".to_string(),
+                "Haskell".to_string(),
+            ],
+        };
+        let _res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+
+        // Create a vote
+        let msg = ExecuteMsg::Vote {
+            uuid: "uuid".to_string(),
+            option: "Rust".to_string(),
+        };
+        let _res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
+
+        // Query for a vote that exists
+        let msg = QueryMsg::GetVote {
+            uuid: "uuid".to_string(),
+            address: ADDR1.to_string(),
+        };
+        let bin = query(deps.as_ref(), env.clone(), msg).unwrap();
+        let res: VoteResponse = from_binary(&bin).unwrap();
+        // Expect the vote to exist
+        assert!(res.ballot.is_some());
+
+        // Query for a vote that does not exists
+        let msg = QueryMsg::GetVote {
+            uuid: "uuid_2".to_string(),
+            address: ADDR2.to_string(),
+        };
+        let bin = query(deps.as_ref(), env, msg).unwrap();
+        let res: VoteResponse = from_binary(&bin).unwrap();
+        // Expect the vote to not exist
+        assert!(res.ballot.is_none());
     }
 }

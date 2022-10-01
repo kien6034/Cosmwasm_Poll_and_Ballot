@@ -31,12 +31,9 @@ pub enum ExecuteMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
+    AllPolls {},
     GetPoll{
         uuid: String,
-    },
-    GetBallot{
-        uuid: String,
-        voter: String
     },
     GetVote{
         uuid: String,
@@ -57,12 +54,12 @@ pub struct AllPollsResponse {
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 pub struct PollResponse {
-    pub options: Option<Poll>,
+    pub poll: Option<Poll>,
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 pub struct VoteResponse {
-    pub ballots: Option<Ballot>,
+    pub ballot: Option<Ballot>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
